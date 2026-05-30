@@ -1,0 +1,294 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum EmployeeRole {
+  MANAGER
+  STAFF
+  CASHIER
+  CHEF
+  SHIPPER
+}
+
+enum OrderChannel {
+  WEB
+  MOBILE
+  POS
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  OUT_FOR_DELIVERY
+  COMPLETED
+  CANCELLED
+}
+
+enum FulfillmentType {
+  PICKUP
+  DELIVERY
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  BANK_TRANSFER
+  E_WALLET
+  COD
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+  FAILED
+}
+
+enum LoyaltyTxnType {
+  EARN
+  REDEEM
+  ADJUST
+}
+
+model Branch {
+  id    String  @id @default(cuid())
+  code  String  @unique
+  name  String
+  phone String?
+  email String?
+
+  addressLine String
+  ward        String?
+  district    String?
+  province    String?
+  country     String   @default("VN")
+  latitude    Decimal? @db.Decimal(10, 7)
+  longitude   Decimal? @db.Decimal(10, 7)
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  employees      Employee[]
+  menuCategories MenuCategory[]
+  menuItems      MenuItem[]
+  orders         Order[]
+  dailyStats     BranchDailyStat[]
+
+  @@index([isActive])
+}
+
+model Employee {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+
+  fullName  String
+  phone     String?
+  email     String?
+  role      EmployeeRole @default(STAFF)
+  isActive  Boolean      @default(true)
+  hiredAt   DateTime     @default(now())
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([branchId, isActive])
+  @@index([role])
+}
+
+model MenuCategory {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  name      String
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items MenuItem[]
+
+  @@unique([branchId, name])
+  @@index([branchId, isActive])
+}
+
+model MenuItem {
+  id         String        @id @default(cuid())
+  branchId   String
+  branch     Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  categoryId String?
+  category   MenuCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  sku         String?
+  name        String
+  description String?
+  imageUrl    String?
+
+  price       Decimal @db.Decimal(12, 2)
+  isAvailable Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orderItems OrderItem[]
+
+  @@unique([branchId, sku])
+  @@index([branchId, isAvailable])
+  @@index([categoryId])
+}
+
+model Customer {
+  id       String    @id @default(cuid())
+  fullName String
+  phone    String?   @unique
+  email    String?   @unique
+  birthday DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  loyaltyAccount LoyaltyAccount?
+  orders         Order[]
+
+  @@index([fullName])
+}
+
+model MembershipTier {
+  id                String   @id @default(cuid())
+  name              String   @unique
+  level             Int      @unique
+  minLifetimePoints Int      @default(0)
+  earnMultiplier    Decimal  @default(1.0) @db.Decimal(5, 2)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  accounts LoyaltyAccount[]
+}
+
+model LoyaltyAccount {
+  id         String   @id @default(cuid())
+  customerId String   @unique
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  tierId String?
+  tier   MembershipTier? @relation(fields: [tierId], references: [id], onDelete: SetNull)
+
+  pointsBalance  Int      @default(0)
+  lifetimePoints Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  transactions LoyaltyTransaction[]
+}
+
+model LoyaltyTransaction {
+  id        String         @id @default(cuid())
+  accountId String
+  account   LoyaltyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  orderId String?
+  order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  type      LoyaltyTxnType
+  points    Int
+  note      String?
+  createdAt DateTime       @default(now())
+
+  @@index([accountId, createdAt])
+  @@index([orderId])
+}
+
+model Order {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
+
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  channel     OrderChannel    @default(WEB)
+  status      OrderStatus     @default(PENDING)
+  fulfillment FulfillmentType @default(DELIVERY)
+
+  paymentMethod PaymentMethod?
+  paymentStatus PaymentStatus  @default(UNPAID)
+
+  customerName  String?
+  customerPhone String?
+
+  deliveryAddressLine String?
+  deliveryWard        String?
+  deliveryDistrict    String?
+  deliveryProvince    String?
+  deliveryNote        String?
+
+  subtotal    Decimal @db.Decimal(12, 2)
+  discount    Decimal @default(0) @db.Decimal(12, 2)
+  tax         Decimal @default(0) @db.Decimal(12, 2)
+  shippingFee Decimal @default(0) @db.Decimal(12, 2)
+  total       Decimal @db.Decimal(12, 2)
+
+  pointsEarned   Int @default(0)
+  pointsRedeemed Int @default(0)
+
+  placedAt    DateTime  @default(now())
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  items       OrderItem[]
+  loyaltyTxns LoyaltyTransaction[]
+
+  @@index([branchId, placedAt])
+  @@index([status, placedAt])
+  @@index([customerId, placedAt])
+}
+
+model OrderItem {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  menuItemId String?
+  menuItem   MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+
+  itemName  String
+  unitPrice Decimal @db.Decimal(12, 2)
+  quantity  Int
+  lineTotal Decimal @db.Decimal(12, 2)
+  note      String?
+
+  @@index([orderId])
+  @@index([menuItemId])
+}
+
+// Bảng hỗ trợ báo cáo nhanh theo ngày (có thể cập nhật bằng cron/job hoặc trigger trong app)
+model BranchDailyStat {
+  id       String @id @default(cuid())
+  branchId String
+  branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  date        DateTime // lưu ngày (khuyến nghị set giờ về 00:00:00)
+  ordersCount Int      @default(0)
+
+  grossRevenue Decimal @default(0) @db.Decimal(14, 2)
+  netRevenue   Decimal @default(0) @db.Decimal(14, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([branchId, date])
+  @@index([date])
+}
