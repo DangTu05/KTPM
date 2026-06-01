@@ -16,12 +16,14 @@ import { OrdersRepository } from './repositories/orders.repository';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
+import { OrderEventsProducer } from './queues/order-events.producer';
 
 @Injectable()
 export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly ordersRepo: OrdersRepository,
+    private readonly orderEventsProducer: OrderEventsProducer,
   ) {}
 
   async create(dto: CreateOrderDto) {
@@ -111,7 +113,18 @@ export class OrdersService {
       },
     };
 
-    return this.ordersRepo.create(data);
+    const order = await this.ordersRepo.create(data);
+
+    this.orderEventsProducer.addOrderCreatedInBackground({
+      orderId: order.id,
+      branchId: order.branchId,
+      customerId: order.customerId ?? undefined,
+      total: order.total.toString(),
+      itemCount: dto.items.length,
+      placedAt: order.placedAt.toISOString(),
+    });
+
+    return order;
   }
 
   async get(id: string) {

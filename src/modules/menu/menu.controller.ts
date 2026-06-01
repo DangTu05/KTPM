@@ -6,12 +6,14 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { MenuService } from './menu.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { CreateMenuItemDto } from './dto/create-menu-item.dto';
 import { UpdateMenuItemDto } from './dto/update-menu-item.dto';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
 @Controller('branches/:branchId/menu')
 export class MenuController {
@@ -27,8 +29,11 @@ export class MenuController {
   }
 
   @Get('categories')
-  listCategories(@Param('branchId') branchId: string) {
-    return this.service.listCategories(branchId);
+  listCategories(
+    @Param('branchId') branchId: string,
+    @Query() query: PaginationQueryDto,
+  ) {
+    return this.service.listCategories(branchId, query);
   }
 
   @Patch('categories/:categoryId')
@@ -54,8 +59,11 @@ export class MenuController {
   }
 
   @Get('items')
-  listMenuItems(@Param('branchId') branchId: string) {
-    return this.service.listMenuItems(branchId);
+  listMenuItems(
+    @Param('branchId') branchId: string,
+    @Query() query: PaginationQueryDto,
+  ) {
+    return this.service.listMenuItems(branchId, query);
   }
 
   @Patch('items/:itemId')

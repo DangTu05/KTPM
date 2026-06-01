@@ -29,6 +29,22 @@ export class MenuItemRepository {
     });
   }
 
+  findManyByBranchPaginated(
+    branchId: string,
+    args: { skip: number; take: number },
+  ): Promise<MenuItem[]> {
+    return this.prisma.menuItem.findMany({
+      where: { branchId },
+      skip: args.skip,
+      take: args.take,
+      orderBy: [{ isAvailable: 'desc' }, { name: 'asc' }],
+    });
+  }
+
+  countByBranch(branchId: string): Promise<number> {
+    return this.prisma.menuItem.count({ where: { branchId } });
+  }
+
   findById(id: string): Promise<MenuItem | null> {
     return this.prisma.menuItem.findUnique({ where: { id } });
   }

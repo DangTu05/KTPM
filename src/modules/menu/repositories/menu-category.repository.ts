@@ -25,6 +25,22 @@ export class MenuCategoryRepository {
     });
   }
 
+  findManyByBranchPaginated(
+    branchId: string,
+    args: { skip: number; take: number },
+  ): Promise<MenuCategory[]> {
+    return this.prisma.menuCategory.findMany({
+      where: { branchId },
+      skip: args.skip,
+      take: args.take,
+      orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+    });
+  }
+
+  countByBranch(branchId: string): Promise<number> {
+    return this.prisma.menuCategory.count({ where: { branchId } });
+  }
+
   findById(id: string): Promise<MenuCategory | null> {
     return this.prisma.menuCategory.findUnique({ where: { id } });
   }
