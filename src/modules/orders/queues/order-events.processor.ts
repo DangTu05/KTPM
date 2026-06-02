@@ -23,7 +23,7 @@ export class OrderEventsProcessor extends WorkerHost {
         await this.handleOrderCreated(job.data);
         return;
       default:
-        this.logger.warn(`Unknown order queue job: ${job.name}`);
+        this.logger.warn(`Job hàng đợi đơn hàng không hỗ trợ: ${job.name}`);
     }
   }
 
@@ -43,12 +43,16 @@ export class OrderEventsProcessor extends WorkerHost {
     });
 
     if (!order) {
-      this.logger.warn(`Skip order.created: order ${job.orderId} not found`);
+      this.logger.warn(
+        `Bỏ qua order.created: không tìm thấy đơn hàng ${job.orderId}`,
+      );
       return;
     }
 
     if (order.pointsEarned > 0) {
-      this.logger.log(`Skip order.created: order ${order.id} already handled`);
+      this.logger.log(
+        `Bỏ qua order.created: đơn hàng ${order.id} đã được xử lý trước đó`,
+      );
       return;
     }
 
@@ -115,7 +119,7 @@ export class OrderEventsProcessor extends WorkerHost {
               order: { connect: { id: order.id } },
               type: LoyaltyTxnType.EARN,
               points,
-              note: 'Earned from order.created queue',
+              note: 'Tích điểm từ hàng đợi order.created',
             },
           });
 

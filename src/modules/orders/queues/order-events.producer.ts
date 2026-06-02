@@ -37,7 +37,9 @@ export class OrderEventsProducer {
   addOrderCreatedInBackground(job: OrderCreatedJob): void {
     void this.addOrderCreated(job).catch((err: unknown) => {
       const message = err instanceof Error ? err.message : String(err);
-      this.logger.error(`Cannot enqueue order.created job: ${message}`);
+      this.logger.error(
+        `Không thể đưa job order.created vào hàng đợi: ${message}`,
+      );
     });
   }
 }

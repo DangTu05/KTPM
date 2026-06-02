@@ -12,6 +12,7 @@ datasource db {
 }
 
 enum EmployeeRole {
+  /// Vai trò nhân viên trong chi nhánh.
   MANAGER
   STAFF
   CASHIER
@@ -20,12 +21,14 @@ enum EmployeeRole {
 }
 
 enum OrderChannel {
+  /// Kênh phát sinh đơn hàng.
   WEB
   MOBILE
   POS
 }
 
 enum OrderStatus {
+  /// Trạng thái vòng đời đơn hàng.
   PENDING
   CONFIRMED
   PREPARING
@@ -36,11 +39,13 @@ enum OrderStatus {
 }
 
 enum FulfillmentType {
+  /// Hình thức nhận hàng.
   PICKUP
   DELIVERY
 }
 
 enum PaymentMethod {
+  /// Phương thức thanh toán.
   CASH
   CARD
   BANK_TRANSFER
@@ -49,6 +54,7 @@ enum PaymentMethod {
 }
 
 enum PaymentStatus {
+  /// Trạng thái thanh toán của đơn.
   UNPAID
   PAID
   REFUNDED
@@ -56,11 +62,14 @@ enum PaymentStatus {
 }
 
 enum LoyaltyTxnType {
+  /// Loại giao dịch điểm tích luỹ.
   EARN
   REDEEM
   ADJUST
 }
 
+/// Chi nhánh/cửa hàng.
+/// - Là “gốc” cho dữ liệu vận hành theo chi nhánh: nhân viên, menu, đơn hàng, thống kê.
 model Branch {
   id    String  @id @default(cuid())
   code  String  @unique
@@ -80,18 +89,25 @@ model Branch {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  /// Danh sách nhân viên thuộc chi nhánh.
   employees      Employee[]
+  /// Danh mục món theo chi nhánh.
   menuCategories MenuCategory[]
+  /// Món bán theo chi nhánh.
   menuItems      MenuItem[]
+  /// Đơn hàng phát sinh tại chi nhánh.
   orders         Order[]
+  /// Tổng hợp thống kê theo ngày.
   dailyStats     BranchDailyStat[]
 
   @@index([isActive])
 }
 
+/// Nhân viên thuộc một chi nhánh.
 model Employee {
   id       String @id @default(cuid())
   branchId String
+  /// Quan hệ nhân viên -> chi nhánh. Không cho xóa chi nhánh khi còn nhân viên.
   branch   Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
 
   fullName  String
@@ -107,9 +123,11 @@ model Employee {
   @@index([role])
 }
 
+/// Danh mục món (vd: Trà sữa, Ăn vặt) theo chi nhánh.
 model MenuCategory {
   id       String @id @default(cuid())
   branchId String
+  /// Khi xóa chi nhánh thì xóa luôn danh mục.
   branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
   name      String
@@ -120,15 +138,20 @@ model MenuCategory {
 
   items MenuItem[]
 
+  /// Không cho trùng tên danh mục trong cùng 1 chi nhánh.
   @@unique([branchId, name])
   @@index([branchId, isActive])
 }
 
+/// Món bán theo chi nhánh.
+/// - Lưu thông tin giá/hiển thị; có thể gắn danh mục.
 model MenuItem {
   id         String        @id @default(cuid())
   branchId   String
+  /// Khi xóa chi nhánh thì xóa luôn món.
   branch     Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
   categoryId String?
+  /// Khi xóa danh mục thì giữ món, chỉ set categoryId = null.
   category   MenuCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   sku         String?
@@ -144,14 +167,18 @@ model MenuItem {
 
   orderItems OrderItem[]
 
+  /// SKU (nếu có) không được trùng trong cùng chi nhánh.
   @@unique([branchId, sku])
   @@index([branchId, isAvailable])
   @@index([categoryId])
 }
 
+/// Khách hàng.
+/// - Có thể có tài khoản tích điểm (0..1) và nhiều đơn hàng.
 model Customer {
   id       String    @id @default(cuid())
   fullName String
+  /// SĐT/email là duy nhất nếu được cung cấp.
   phone    String?   @unique
   email    String?   @unique
   birthday DateTime?
@@ -165,11 +192,13 @@ model Customer {
   @@index([fullName])
 }
 
+/// Hạng thành viên (tier) dùng để phân loại khách theo điểm tích lũy.
 model MembershipTier {
   id                String   @id @default(cuid())
   name              String   @unique
   level             Int      @unique
   minLifetimePoints Int      @default(0)
+  /// Hệ số nhân điểm khi tích lũy.
   earnMultiplier    Decimal  @default(1.0) @db.Decimal(5, 2)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -177,15 +206,20 @@ model MembershipTier {
   accounts LoyaltyAccount[]
 }
 
+/// Tài khoản tích điểm của khách hàng.
+/// - Mỗi Customer tối đa 1 LoyaltyAccount (customerId @unique).
 model LoyaltyAccount {
   id         String   @id @default(cuid())
   customerId String   @unique
+  /// Khi xóa khách hàng thì xóa tài khoản tích điểm.
   customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
   tierId String?
   tier   MembershipTier? @relation(fields: [tierId], references: [id], onDelete: SetNull)
 
+  /// Điểm hiện có.
   pointsBalance  Int      @default(0)
+  /// Tổng điểm tích lũy (để xét hạng).
   lifetimePoints Int      @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -193,12 +227,15 @@ model LoyaltyAccount {
   transactions LoyaltyTransaction[]
 }
 
+/// Lịch sử giao dịch điểm (cộng/trừ/điều chỉnh).
 model LoyaltyTransaction {
   id        String         @id @default(cuid())
   accountId String
+  /// Khi xóa LoyaltyAccount thì xóa luôn lịch sử giao dịch.
   account   LoyaltyAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   orderId String?
+  /// Có thể gắn với một Order; khi xóa Order thì giữ giao dịch, set orderId = null.
   order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
   type      LoyaltyTxnType
@@ -210,12 +247,17 @@ model LoyaltyTransaction {
   @@index([orderId])
 }
 
+/// Đơn hàng.
+/// - Thuộc 1 chi nhánh; có thể có khách hàng (khách vãng lai thì null).
+/// - Lưu snapshot thông tin giao hàng, thanh toán, tổng tiền và điểm.
 model Order {
   id       String @id @default(cuid())
   branchId String
+  /// Không cho xóa chi nhánh khi còn đơn hàng.
   branch   Branch @relation(fields: [branchId], references: [id], onDelete: Restrict)
 
   customerId String?
+  /// Nếu xóa Customer thì giữ Order, set customerId = null.
   customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   channel     OrderChannel    @default(WEB)
@@ -256,12 +298,16 @@ model Order {
   @@index([customerId, placedAt])
 }
 
+/// Dòng chi tiết của đơn hàng.
+/// - Lưu snapshot tên món/giá tại thời điểm mua để không bị ảnh hưởng khi menu thay đổi.
 model OrderItem {
   id      String @id @default(cuid())
   orderId String
+  /// Khi xóa Order thì xóa luôn các dòng OrderItem.
   order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   menuItemId String?
+  /// Có thể trỏ về MenuItem; nếu MenuItem bị xóa thì giữ OrderItem, set menuItemId = null.
   menuItem   MenuItem? @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
 
   itemName  String
@@ -275,9 +321,12 @@ model OrderItem {
 }
 
 // Bảng hỗ trợ báo cáo nhanh theo ngày (có thể cập nhật bằng cron/job hoặc trigger trong app)
+/// Thống kê theo ngày cho mỗi chi nhánh (pre-aggregate).
+/// - Dùng để báo cáo nhanh, tránh phải aggregate Orders mỗi lần.
 model BranchDailyStat {
   id       String @id @default(cuid())
   branchId String
+  /// Khi xóa chi nhánh thì xóa luôn thống kê.
   branch   Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
   date        DateTime // lưu ngày (khuyến nghị set giờ về 00:00:00)

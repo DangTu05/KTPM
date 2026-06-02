@@ -24,7 +24,7 @@ export class CustomersService {
 
   async get(id: string) {
     const customer = await this.repo.findById(id);
-    if (!customer) throw new NotFoundException('Customer not found');
+    if (!customer) throw new NotFoundException('Không tìm thấy khách hàng');
     return customer;
   }
 

@@ -111,21 +111,23 @@ export class MenuService {
     dto: UpdateCategoryDto,
   ): Promise<MenuCategory> {
     const category = await this.categoriesRepo.findById(categoryId);
-    if (!category) throw new NotFoundException('Category not found');
+    if (!category) throw new NotFoundException('Không tìm thấy danh mục');
 
     return this.categoriesRepo.update(categoryId, dto);
   }
 
   async deleteCategory(categoryId: string): Promise<MenuCategory> {
     const category = await this.categoriesRepo.findById(categoryId);
-    if (!category) throw new NotFoundException('Category not found');
+    if (!category) throw new NotFoundException('Không tìm thấy danh mục');
 
     return this.categoriesRepo.delete(categoryId);
   }
 
   createMenuItem(branchId: string, dto: CreateMenuItemDto): Promise<MenuItem> {
     if (dto.categoryId === '') {
-      throw new BadRequestException('categoryId must be omitted or a valid id');
+      throw new BadRequestException(
+        'categoryId phải để trống hoặc là id hợp lệ',
+      );
     }
 
     const created = this.itemsRepo.create(branchId, {
@@ -181,7 +183,7 @@ export class MenuService {
     dto: UpdateMenuItemDto,
   ): Promise<MenuItem> {
     const item = await this.itemsRepo.findById(itemId);
-    if (!item) throw new NotFoundException('Menu item not found');
+    if (!item) throw new NotFoundException('Không tìm thấy món');
 
     const data: Prisma.MenuItemUpdateInput = {
       sku: dto.sku,
@@ -206,7 +208,7 @@ export class MenuService {
 
   async deleteMenuItem(itemId: string): Promise<MenuItem> {
     const item = await this.itemsRepo.findById(itemId);
-    if (!item) throw new NotFoundException('Menu item not found');
+    if (!item) throw new NotFoundException('Không tìm thấy món');
 
     const deleted = await this.itemsRepo.delete(itemId);
     void this.bumpMenuItemsCacheVersion(item.branchId);

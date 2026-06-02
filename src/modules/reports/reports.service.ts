@@ -12,7 +12,7 @@ export class ReportsService {
     if (!input) return undefined;
     const d = new Date(input);
     if (Number.isNaN(d.getTime()))
-      throw new BadRequestException('Invalid date');
+      throw new BadRequestException('Ngày không hợp lệ');
     return d;
   }
 

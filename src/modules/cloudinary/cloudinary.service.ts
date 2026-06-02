@@ -32,7 +32,9 @@ export class CloudinaryService {
         ) => {
           if (error) return reject(new BadRequestException(error.message));
           if (!result)
-            return reject(new BadRequestException('Empty upload response'));
+            return reject(
+              new BadRequestException('Không nhận được phản hồi khi tải lên'),
+            );
 
           // normalize response
           // eslint-disable-next-line @typescript-eslint/no-explicit-any

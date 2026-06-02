@@ -12,6 +12,7 @@ import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
 @Controller('orders')
 export class OrdersController {
@@ -29,8 +30,17 @@ export class OrdersController {
     @Query('customerId') customerId?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query() query?: PaginationQueryDto,
   ) {
-    return this.service.list({ branchId, status, customerId, from, to });
+    return this.service.list({
+      branchId,
+      status,
+      customerId,
+      from,
+      to,
+      page: query?.page,
+      limit: query?.limit,
+    });
   }
 
   @Get(':id')

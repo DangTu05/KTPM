@@ -39,7 +39,7 @@ export class LoyaltyService {
 
   async updateTier(id: string, dto: UpdateTierDto) {
     const tier = await this.tierRepo.findById(id);
-    if (!tier) throw new NotFoundException('Tier not found');
+    if (!tier) throw new NotFoundException('Không tìm thấy hạng thành viên');
 
     const data: Prisma.MembershipTierUpdateInput = {
       name: dto.name,
@@ -55,7 +55,7 @@ export class LoyaltyService {
 
   async deleteTier(id: string) {
     const tier = await this.tierRepo.findById(id);
-    if (!tier) throw new NotFoundException('Tier not found');
+    if (!tier) throw new NotFoundException('Không tìm thấy hạng thành viên');
     return this.tierRepo.delete(id);
   }
 
@@ -64,7 +64,7 @@ export class LoyaltyService {
     const customer = await this.prisma.customer.findUnique({
       where: { id: customerId },
     });
-    if (!customer) throw new NotFoundException('Customer not found');
+    if (!customer) throw new NotFoundException('Không tìm thấy khách hàng');
 
     const existing = await this.accountRepo.findByCustomerId(customerId);
     if (existing) return existing;
@@ -78,7 +78,8 @@ export class LoyaltyService {
 
   async getAccount(accountId: string) {
     const account = await this.accountRepo.findById(accountId);
-    if (!account) throw new NotFoundException('Loyalty account not found');
+    if (!account)
+      throw new NotFoundException('Không tìm thấy tài khoản tích điểm');
     return account;
   }
 
@@ -87,7 +88,7 @@ export class LoyaltyService {
 
     if (tierId) {
       const tier = await this.tierRepo.findById(tierId);
-      if (!tier) throw new NotFoundException('Tier not found');
+      if (!tier) throw new NotFoundException('Không tìm thấy hạng thành viên');
       return this.accountRepo.update(accountId, {
         tier: { connect: { id: tierId } },
       });
@@ -107,12 +108,12 @@ export class LoyaltyService {
       const order = await this.prisma.order.findUnique({
         where: { id: dto.orderId },
       });
-      if (!order) throw new NotFoundException('Order not found');
+      if (!order) throw new NotFoundException('Không tìm thấy đơn hàng');
     }
 
     const delta = dto.type === LoyaltyTxnType.REDEEM ? -dto.points : dto.points;
     const newBalance = account.pointsBalance + delta;
-    if (newBalance < 0) throw new BadRequestException('Insufficient points');
+    if (newBalance < 0) throw new BadRequestException('Không đủ điểm');
 
     // Transaction + update balance atomically
     return this.prisma.$transaction(async (tx) => {

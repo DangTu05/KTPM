@@ -6,12 +6,14 @@ import {
   Param,
   Patch,
   Post,
+  Query,
 } from '@nestjs/common';
 import { BranchesService } from './branches.service';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
 @Controller('branches')
 export class BranchesController {
@@ -23,8 +25,8 @@ export class BranchesController {
   }
 
   @Get()
-  list() {
-    return this.service.listBranches();
+  list(@Query() query: PaginationQueryDto) {
+    return this.service.listBranches(query);
   }
 
   @Get(':id')

@@ -6,6 +6,19 @@ import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
+import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
+
+type PaginatedResponse<T> = {
+  data: T[];
+  meta: {
+    page: number;
+    limit: number;
+    totalItems: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+};
 
 @Injectable()
 export class BranchesService {
@@ -31,13 +44,25 @@ export class BranchesService {
     return this.branchesRepo.create(data);
   }
 
-  listBranches(): Promise<Branch[]> {
-    return this.branchesRepo.findMany();
+  listBranches(query?: PaginationQueryDto): Promise<PaginatedResponse<Branch>> {
+    const page = query?.page ?? 1;
+    const limit = query?.limit ?? 20;
+    const safePage = Number.isFinite(page) ? Math.max(1, page) : 1;
+    const safeLimit = Number.isFinite(limit)
+      ? Math.min(100, Math.max(1, limit))
+      : 20;
+
+    return this.branchesRepo.findMany({
+      skip: (safePage - 1) * safeLimit,
+      take: safeLimit,
+      page: safePage,
+      limit: safeLimit,
+    });
   }
 
   async getBranch(id: string): Promise<Branch> {
     const branch = await this.branchesRepo.findById(id);
-    if (!branch) throw new NotFoundException('Branch not found');
+    if (!branch) throw new NotFoundException('Không tìm thấy chi nhánh');
     return branch;
   }
 
@@ -75,13 +100,13 @@ export class BranchesService {
     dto: UpdateEmployeeDto,
   ): Promise<Employee> {
     const employee = await this.employeesRepo.findById(employeeId);
-    if (!employee) throw new NotFoundException('Employee not found');
+    if (!employee) throw new NotFoundException('Không tìm thấy nhân viên');
     return this.employeesRepo.update(employeeId, dto);
   }
 
   async deleteEmployee(employeeId: string): Promise<Employee> {
     const employee = await this.employeesRepo.findById(employeeId);
-    if (!employee) throw new NotFoundException('Employee not found');
+    if (!employee) throw new NotFoundException('Không tìm thấy nhân viên');
     return this.employeesRepo.delete(employeeId);
   }
 }

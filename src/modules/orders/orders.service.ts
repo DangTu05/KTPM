@@ -17,6 +17,7 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderStatusDto } from './dto/update-order-status.dto';
 import { UpdatePaymentDto } from './dto/update-payment.dto';
 import { OrderEventsProducer } from './queues/order-events.producer';
+import type { PaginatedResponse } from './repositories/orders.repository';
 
 @Injectable()
 export class OrdersService {
@@ -30,13 +31,13 @@ export class OrdersService {
     const branch = await this.prisma.branch.findUnique({
       where: { id: dto.branchId },
     });
-    if (!branch) throw new NotFoundException('Branch not found');
+    if (!branch) throw new NotFoundException('Không tìm thấy chi nhánh');
 
     if (dto.customerId) {
       const customer = await this.prisma.customer.findUnique({
         where: { id: dto.customerId },
       });
-      if (!customer) throw new NotFoundException('Customer not found');
+      if (!customer) throw new NotFoundException('Không tìm thấy khách hàng');
     }
 
     const menuItemIds = dto.items.map((i) => i.menuItemId);
@@ -50,7 +51,7 @@ export class OrdersService {
 
     if (menuItems.length !== menuItemIds.length) {
       throw new BadRequestException(
-        'One or more items are not available in this branch',
+        'Một hoặc nhiều món không khả dụng tại chi nhánh này',
       );
     }
 
@@ -66,7 +67,7 @@ export class OrdersService {
     const shippingFee = dto.shippingFee ?? 0;
 
     const total = subtotal - discount + tax + shippingFee;
-    if (total < 0) throw new BadRequestException('Total cannot be negative');
+    if (total < 0) throw new BadRequestException('Tổng tiền không được âm');
 
     const data: Prisma.OrderCreateInput = {
       branch: { connect: { id: dto.branchId } },
@@ -129,7 +130,7 @@ export class OrdersService {
 
   async get(id: string) {
     const order = await this.ordersRepo.findById(id);
-    if (!order) throw new NotFoundException('Order not found');
+    if (!order) throw new NotFoundException('Không tìm thấy đơn hàng');
     return order;
   }
 
@@ -139,13 +140,26 @@ export class OrdersService {
     customerId?: string;
     from?: string;
     to?: string;
-  }) {
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedResponse> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const safePage = Number.isFinite(page) ? Math.max(1, page) : 1;
+    const safeLimit = Number.isFinite(limit)
+      ? Math.min(100, Math.max(1, limit))
+      : 20;
+
     return this.ordersRepo.findMany({
       branchId: query.branchId,
       status: query.status,
       customerId: query.customerId,
       from: query.from ? new Date(query.from) : undefined,
       to: query.to ? new Date(query.to) : undefined,
+      skip: (safePage - 1) * safeLimit,
+      take: safeLimit,
+      page: safePage,
+      limit: safeLimit,
     });
   }
 
